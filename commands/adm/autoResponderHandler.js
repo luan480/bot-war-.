@@ -1,4 +1,4 @@
-/* commands/adm/autoResponderHandler.js (CORRIGIDO PARA O NOVO JSON) */
+/* commands/adm/autoResponderHandler.js (CÓDIGO CORRETO) */
 
 const { Events } = require('discord.js');
 const path = require('path');
@@ -70,8 +70,10 @@ const autoResponderHandler = (client) => {
             // 3. Foi uma Palavra-Chave? (Só se não encontrou menção nem exato)
             if (!responseArray && config.keywordTriggers) {
                  const foundTrigger = Object.keys(config.keywordTriggers).find(trigger => {
-                    return content.includes(trigger.toLowerCase());
-                });
+                    // Verifica se a palavra inteira está na mensagem (evita "ola" em "controlar")
+                    const regex = new RegExp(`\\b${trigger.toLowerCase()}\\b`);
+                    return regex.test(content);
+                 });
 
                 if (foundTrigger) {
                     responseArray = config.keywordTriggers[foundTrigger];
