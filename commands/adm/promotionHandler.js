@@ -1,27 +1,37 @@
-/* commands/adm/promotionHandler.js (CORRIGIDO COM ASYNC E LOGGER) */
+/* commands/adm/promotionHandler.js (ATUALIZADO) */
 
 const { Events, EmbedBuilder } = require('discord.js');
 const path = require('path');
-const { safeReadJson, safeWriteJson, logErrorToChannel } = require('../liga/utils/helpers.js');
-const { recalcularRank } = require('./carreiraHelpers.js');
 
+// --- MUDANÇA AQUI: Importa o logger e lê os helpers certos ---
+const { safeReadJson, safeWriteJson, logErrorToChannel } = require('../liga/utils/helpers.js');
+const { recalcularRank } = require('./carreiraHelpers.js'); // O recalcularRank continua no helpers
+// --- FIM DA MUDANÇA ---
+
+// Caminhos para os arquivos JSON
 const progressaoPath = path.join(__dirname, 'progressao.json');
 const carreirasPath = path.join(__dirname, 'carreiras.json');
+// --- MUDANÇA AQUI: Lê o ficheiro de CONFIGURAÇÃO correto ---
+const configPath = path.join(__dirname, 'promocao_config.json');
+// --- FIM DA MUDANÇA ---
 
 
 const promotionVigia = (client) => {
     
     // Carrega as configurações de forma assíncrona quando o bot está pronto
     client.once(Events.ClientReady, async () => {
-        let carreirasConfig, canalDePrintsId, cargoRecrutaId;
-
+        let config, carreirasConfig;
+        
         try {
-            carreirasConfig = await safeReadJson(carreirasPath); // Usa await
-            canalDePrintsId = carreirasConfig.canalDePrints; 
-            cargoRecrutaId = carreirasConfig.cargoRecrutaId;
+            // Lê os dois ficheiros de configuração
+            config = await safeReadJson(configPath, { canalDePrints: null, vitoriasPorPrint: 1 });
+            carreirasConfig = await safeReadJson(carreirasPath); // Continua a precisar disto para as facções
+
+            const canalDePrintsId = config.canalDePrints;
+            const cargoRecrutaId = carreirasConfig.cargoRecrutaId;
 
             if (!canalDePrintsId) {
-                console.warn("[AVISO DE PROMOÇÃO] O sistema de promoção está desativado. 'canalDePrints' não encontrado no carreiras.json.");
+                console.warn("[AVISO DE PROMOÇÃO] O sistema de promoção está desativado. Use `/promocao-configurar canal`.");
                 return; 
             }
             if (!carreirasConfig || !carreirasConfig.faccoes || !cargoRecrutaId) {
@@ -29,7 +39,7 @@ const promotionVigia = (client) => {
                 return;
             }
 
-            console.log(`[INFO Promoção] Vigia de patentes ATIVADO. Canal: ${canalDePrintsId}`);
+            console.log(`[INFO Promoção] Vigia de patentes ATIVADO. Canal: ${canalDePrintsId}. Vitórias por Print: ${config.vitoriasPorPrint}`);
 
         } catch (err) {
             console.error("Falha ao iniciar o promotionHandler:", err);
@@ -39,17 +49,19 @@ const promotionVigia = (client) => {
 
         // O listener de mensagens fica DENTRO do startup assíncrono
         client.on(Events.MessageCreate, async message => {
-            if (message.channel.id !== canalDePrintsId) return;
+            // O bot só deve ler o canal que está na config
+            if (message.channel.id !== config.canalDePrints) return;
             if (message.author.bot) return;
             if (message.attachments.size === 0) return;
 
             const member = message.member;
             if (!member) return;
             
-            // --- [CORREÇÃO CRÍTICA AQUI] ---
-            // Esta é a lógica CORRETA para um objeto JSON
+            // Lógica para encontrar a facção (esta parte está correta)
             let faccaoId = null;
             let faccao = null;
+            const cargoRecrutaId = carreirasConfig.cargoRecrutaId; // Pega o ID do cargo de recruta
+            
             for (const id of Object.keys(carreirasConfig.faccoes)) {
                 if (member.roles.cache.has(id)) {
                     faccaoId = id;
@@ -57,11 +69,9 @@ const promotionVigia = (client) => {
                     break;
                 }
             }
-            // --- FIM DA CORREÇÃO ---
             
-            // Se não encontrou facção E também não é um recruta, ignora.
             if (!faccaoId && !member.roles.cache.has(cargoRecrutaId)) {
-                return;
+                return; // Ignora se não for de nenhuma facção E não for um recruta
             }
 
             try {
@@ -71,13 +81,16 @@ const promotionVigia = (client) => {
                 // --- Sincronização Automática ---
                 if (!progressao[userId]) {
                     if (!faccaoId) {
-                        await message.reply({ content: `${member}, não consegui identificar sua facção. Você precisa pegar o cargo da sua facção (Exército, Marinha, etc.) antes de registrar sua primeira vitória.`});
+                        // Se é um recruta sem facção, avisa
+                        if(member.roles.cache.has(cargoRecrutaId)) {
+                            await message.reply({ content: `${member}, não consegui identificar sua facção. Você precisa pegar o cargo da sua facção (Exército, Marinha, etc.) antes de registrar sua primeira vitória.`});
+                        }
                         return;
                     }
                     
+                    // Sincroniza um membro que já tem cargos mas não está no JSON
                     let cargoMaisAlto = null;
                     let custoDoCargo = 0;
-                    // Itera pelo caminho da facção encontrada
                     for (let i = faccao.caminho.length - 1; i >= 0; i--) {
                         const rank = faccao.caminho[i];
                         if (member.roles.cache.has(rank.id)) {
@@ -97,23 +110,25 @@ const promotionVigia = (client) => {
                 }
                 
                 const userProgress = progressao[userId];
+                
                 // Se o usuário não tiver facção no JSON, mas tiver cargo, atualiza
                 if (!userProgress.factionId && faccaoId) {
                     userProgress.factionId = faccaoId;
                 }
-                
+
                 const faccaoDoUsuario = carreirasConfig.faccoes[userProgress.factionId];
 
                 if (!faccaoDoUsuario) {
-                    console.error(`[Promoção] Usuário ${member.user.tag} tem uma facção ID (${userProgress.factionId}) que não existe no carreiras.json.`);
-                    return;
+                     console.error(`[Promoção] Usuário ${member.user.tag} tem uma facção ID (${userProgress.factionId}) que não existe no carreiras.json.`);
+                     return;
                 }
 
                 // ---- O CONTADOR ----
                 const cargoAntigoId = userProgress.currentRankId; 
+                const vitoriasParaAdicionar = config.vitoriasPorPrint || 1; // Pega o valor da config
                 
                 await message.react('🔰'); 
-                userProgress.totalWins = userProgress.totalWins + 1;
+                userProgress.totalWins = userProgress.totalWins + vitoriasParaAdicionar; // Adiciona a quantidade correta
                 
                 // ---- O AGENTE ----
                 await recalcularRank(member, faccaoDoUsuario, userProgress);
@@ -123,7 +138,7 @@ const promotionVigia = (client) => {
                 
                 const cargoNovoId = userProgress.currentRankId; 
                 
-                console.log(`[Promoção] +1 vitória para ${member.user.tag}. Total: ${userProgress.totalWins}. Cargo atual: ${cargoNovoId}`);
+                console.log(`[Promoção] +${vitoriasParaAdicionar} vitórias para ${member.user.tag}. Total: ${userProgress.totalWins}. Cargo atual: ${cargoNovoId}`);
 
                 // --- [A NOTIFICAÇÃO] ---
                 if (cargoAntigoId !== cargoNovoId) {
@@ -151,7 +166,7 @@ const promotionVigia = (client) => {
 
             } catch (err) {
                 console.error(`Erro ao processar print de patente [${message.url}]: ${err.message}`);
-                await logErrorToChannel(client, err, message); // Loga o erro no Discord
+                await logErrorToChannel(client, err, message); 
             }
         });
     });
