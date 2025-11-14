@@ -1,13 +1,12 @@
-/* commands/adm/promocao-configurar.js (ATUALIZADO) */
+/* commands/adm/promocao-configurar.js (CORRIGIDO E MELHORADO) */
 
-const { SlashCommandBuilder, PermissionsBitField, ChannelType, InteractionResponse } = require('discord.js');
+const { SlashCommandBuilder, PermissionsBitField, ChannelType } = require('discord.js');
 const path = require('path');
 // --- [CORREÇÃO AQUI] ---
-// Agora estamos a importar 'safeWriteJson' também
+// Importa do helper GLOBAL
 const { safeReadJson, safeWriteJson } = require('../liga/utils/helpers.js');
 // --- FIM DA CORREÇÃO ---
 
-// Este é o ficheiro de configuração correto que o Handler vai ler
 const configPath = path.join(__dirname, 'promocao_config.json');
 
 module.exports = {
@@ -41,12 +40,8 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        // --- [CORREÇÃO DO AVISO "DEPRECATED"] ---
-        // 'ephemeral: true' foi substituído por 'flags: 64'
-        await interaction.deferReply({ flags: 64 }); // 64 = Ephemeral
-        // --- FIM DA CORREÇÃO ---
+        await interaction.deferReply({ flags: 64 }); // 64 = Ephemeral (corrige aviso de "deprecated")
 
-        // Lê a configuração atual (ou cria uma vazia)
         const config = await safeReadJson(configPath, {
             canalDePrints: null,
             vitoriasPorPrint: 1 // Valor padrão

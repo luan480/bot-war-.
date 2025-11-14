@@ -1,36 +1,28 @@
-/* commands/adm/promotionHandler.js (ATUALIZADO) */
+/* commands/adm/promotionHandler.js (CORRIGIDO) */
 
 const { Events, EmbedBuilder } = require('discord.js');
 const path = require('path');
-
 const { safeReadJson, safeWriteJson, logErrorToChannel } = require('../liga/utils/helpers.js');
-const { recalcularRank } = require('./carreiraHelpers.js'); // O recalcularRank continua no helpers
+const { recalcularRank } = require('./carreiraHelpers.js');
 
-// Caminhos para os arquivos JSON
 const progressaoPath = path.join(__dirname, 'progressao.json');
 const carreirasPath = path.join(__dirname, 'carreiras.json');
 // --- [A CORREÇÃO] ---
-// Temos de ler a configuração do comando, não do carreiras.json
 const configPath = path.join(__dirname, 'promocao_config.json');
 // --- FIM DA CORREÇÃO ---
 
 
 const promotionVigia = (client) => {
     
-    // Carrega as configurações de forma assíncrona quando o bot está pronto
     client.once(Events.ClientReady, async () => {
         let config, carreirasConfig;
         
         try {
-            // Lê os dois ficheiros de configuração
-            // Valor padrão de { canalDePrints: null, vitoriasPorPrint: 1 }
+            // Lê as configurações do ficheiro correto
             config = await safeReadJson(configPath, { canalDePrints: null, vitoriasPorPrint: 1 });
-            carreirasConfig = await safeReadJson(carreirasPath); // Continua a precisar disto para as facções
+            carreirasConfig = await safeReadJson(carreirasPath); 
 
-            // --- [A CORREÇÃO] ---
-            // Lê o canalDePrintsId A PARTIR DO 'config' (promocao_config.json)
             const canalDePrintsId = config.canalDePrints;
-            // --- FIM DA CORREÇÃO ---
             const cargoRecrutaId = carreirasConfig.cargoRecrutaId;
 
             if (!canalDePrintsId) {
@@ -41,21 +33,18 @@ const promotionVigia = (client) => {
                 console.warn("[AVISO DE PROMOÇÃO] O arquivo 'carreiras.json' está mal formatado (falta 'faccoes' ou 'cargoRecrutaId').");
                 return;
             }
-            
-            // --- [A CORREÇÃO] ---
-            // Este log agora mostra as Vitórias por Print, provando que é o código novo
+
+            // Este log agora mostra as Vitórias, provando que é o código novo
             console.log(`[INFO Promoção] Vigia de patentes ATIVADO. Canal: ${canalDePrintsId}. Vitórias por Print: ${config.vitoriasPorPrint}`);
-            // --- FIM DA CORREÇÃO ---
 
         } catch (err) {
             console.error("Falha ao iniciar o promotionHandler:", err);
-            logErrorToChannel(client, err, null); // Loga a falha no startup
+            logErrorToChannel(client, err, null); 
             return;
         }
 
-        // O listener de mensagens fica DENTRO do startup assíncrono
+        // Listener de mensagens
         client.on(Events.MessageCreate, async message => {
-            // O bot só deve ler o canal que está na config
             if (message.channel.id !== config.canalDePrints) return;
             if (message.author.bot) return;
             if (message.attachments.size === 0) return;
@@ -75,7 +64,6 @@ const promotionVigia = (client) => {
                 }
             }
             
-            // Se não tiver facção E não for recruta, ignora.
             if (!faccaoId && !member.roles.cache.has(cargoRecrutaId)) {
                 return;
             }
@@ -84,7 +72,6 @@ const promotionVigia = (client) => {
                 const progressao = await safeReadJson(progressaoPath);
                 const userId = member.id;
                 
-                // --- Sincronização Automática ---
                 if (!progressao[userId]) {
                     if (!faccaoId) {
                         if(member.roles.cache.has(cargoRecrutaId)) {
@@ -126,27 +113,20 @@ const promotionVigia = (client) => {
                      return;
                 }
 
-                // ---- O CONTADOR ----
-                const cargoAntigoId = userProgress.currentRankId;
-                // --- [A CORREÇÃO] --- 
-                // Pega as vitórias da config, com padrão de 1
+                const cargoAntigoId = userProgress.currentRankId; 
                 const vitoriasParaAdicionar = config.vitoriasPorPrint || 1; 
                 
                 await message.react('🔰'); 
                 userProgress.totalWins = userProgress.totalWins + vitoriasParaAdicionar; 
-                // --- FIM DA CORREÇÃO ---
                 
-                // ---- O AGENTE ----
                 await recalcularRank(member, faccaoDoUsuario, userProgress);
                 
-                // ---- O SALVAMENTO ----
                 await safeWriteJson(progressaoPath, progressao);
                 
                 const cargoNovoId = userProgress.currentRankId; 
                 
                 console.log(`[Promoção] +${vitoriasParaAdicionar} vitórias para ${member.user.tag}. Total: ${userProgress.totalWins}. Cargo atual: ${cargoNovoId}`);
 
-                // --- [A NOTIFICAÇÃO] ---
                 if (cargoAntigoId !== cargoNovoId) {
                     const novoCargo = faccaoDoUsuario.caminho.find(r => r.id === cargoNovoId);
                     const canalDeAnuncio = await client.channels.fetch(faccaoDoUsuario.canalDeAnuncio).catch(() => null);
