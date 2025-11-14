@@ -1,5 +1,5 @@
 /* ========================================================================
-   ARQUIVO deploy-commands.js (COM FILTRO FINAL)
+   ARQUIVO deploy-commands.js (COM FILTRO FINAL v2)
    ======================================================================== */
 
 require('dotenv').config(); 
@@ -28,7 +28,7 @@ console.log(`[INFO] Pastas encontradas: ${commandFolders.join(', ')}`);
 for (const folder of commandFolders) {
     const folderPath = path.join(commandsPath, folder);
     
-    // --- MUDANÇA AQUI: Filtro robusto (ignora maiúsculas/minúsculas) ---
+    // --- MUDANÇA AQUI: Adicionado "manager" ao filtro ---
     const commandFiles = fs.readdirSync(folderPath).filter(f => {
         const fLower = f.toLowerCase();
         return f.endsWith('.js') && 
@@ -36,7 +36,8 @@ for (const folder of commandFolders) {
                !fLower.includes('router') &&
                !fLower.includes('helpers') &&
                !fLower.includes('buttons') &&
-               !fLower.includes('painel');
+               !fLower.includes('painel') &&
+               !fLower.includes('manager'); // <-- NOVA LINHA
     });
     // --- FIM DA MUDANÇA ---
     
