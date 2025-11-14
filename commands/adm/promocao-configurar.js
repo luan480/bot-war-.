@@ -1,8 +1,11 @@
 /* commands/adm/promocao-configurar.js (ATUALIZADO) */
 
-const { SlashCommandBuilder, PermissionsBitField, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, PermissionsBitField, ChannelType, InteractionResponse } = require('discord.js');
 const path = require('path');
+// --- [CORREÇÃO AQUI] ---
+// Agora estamos a importar 'safeWriteJson' também
 const { safeReadJson, safeWriteJson } = require('../liga/utils/helpers.js');
+// --- FIM DA CORREÇÃO ---
 
 // Este é o ficheiro de configuração correto que o Handler vai ler
 const configPath = path.join(__dirname, 'promocao_config.json');
@@ -22,7 +25,6 @@ module.exports = {
                         .addChannelTypes(ChannelType.GuildText)
                 )
         )
-        // --- MUDANÇA AQUI: Novo sub-comando ---
         .addSubcommand(sub =>
             sub.setName('vitorias')
                 .setDescription('Define quantas vitórias cada print vale.')
@@ -33,14 +35,16 @@ module.exports = {
                         .setMinValue(1)
                 )
         )
-        // --- FIM DA MUDANÇA ---
         .addSubcommand(sub =>
             sub.setName('status')
                 .setDescription('Verifica as configurações atuais do sistema de promoção.')
         ),
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        // --- [CORREÇÃO DO AVISO "DEPRECATED"] ---
+        // 'ephemeral: true' foi substituído por 'flags: 64'
+        await interaction.deferReply({ flags: 64 }); // 64 = Ephemeral
+        // --- FIM DA CORREÇÃO ---
 
         // Lê a configuração atual (ou cria uma vazia)
         const config = await safeReadJson(configPath, {
@@ -53,16 +57,14 @@ module.exports = {
         if (sub === 'canal') {
             const channel = interaction.options.getChannel('canal');
             config.canalDePrints = channel.id;
-            await safeWriteJson(configPath, config);
+            await safeWriteJson(configPath, config); // Esta linha agora funciona
             return interaction.editReply(`✅ O canal de prints de promoção foi definido para ${channel}.`);
         
-        // --- MUDANÇA AQUI: Lógica do novo sub-comando ---
         } else if (sub === 'vitorias') {
             const quantidade = interaction.options.getInteger('quantidade');
             config.vitoriasPorPrint = quantidade;
-            await safeWriteJson(configPath, config);
+            await safeWriteJson(configPath, config); // Esta linha agora funciona
             return interaction.editReply(`✅ Cada print de vitória agora vale **${quantidade}** vitórias.`);
-        // --- FIM DA MUDANÇA ---
 
         } else if (sub === 'status') {
             const canal = config.canalDePrints ? `<#${config.canalDePrints}>` : 'Nenhum canal definido';
