@@ -3,17 +3,16 @@
 const { Events, EmbedBuilder } = require('discord.js');
 const path = require('path');
 
-// --- MUDANÇA AQUI: Importa o logger e lê os helpers certos ---
 const { safeReadJson, safeWriteJson, logErrorToChannel } = require('../liga/utils/helpers.js');
 const { recalcularRank } = require('./carreiraHelpers.js'); // O recalcularRank continua no helpers
-// --- FIM DA MUDANÇA ---
 
 // Caminhos para os arquivos JSON
 const progressaoPath = path.join(__dirname, 'progressao.json');
 const carreirasPath = path.join(__dirname, 'carreiras.json');
-// --- MUDANÇA AQUI: Lê o ficheiro de CONFIGURAÇÃO correto ---
+// --- [A CORREÇÃO] ---
+// Temos de ler a configuração do comando, não do carreiras.json
 const configPath = path.join(__dirname, 'promocao_config.json');
-// --- FIM DA MUDANÇA ---
+// --- FIM DA CORREÇÃO ---
 
 
 const promotionVigia = (client) => {
@@ -24,10 +23,14 @@ const promotionVigia = (client) => {
         
         try {
             // Lê os dois ficheiros de configuração
+            // Valor padrão de { canalDePrints: null, vitoriasPorPrint: 1 }
             config = await safeReadJson(configPath, { canalDePrints: null, vitoriasPorPrint: 1 });
             carreirasConfig = await safeReadJson(carreirasPath); // Continua a precisar disto para as facções
 
+            // --- [A CORREÇÃO] ---
+            // Lê o canalDePrintsId A PARTIR DO 'config' (promocao_config.json)
             const canalDePrintsId = config.canalDePrints;
+            // --- FIM DA CORREÇÃO ---
             const cargoRecrutaId = carreirasConfig.cargoRecrutaId;
 
             if (!canalDePrintsId) {
@@ -38,8 +41,11 @@ const promotionVigia = (client) => {
                 console.warn("[AVISO DE PROMOÇÃO] O arquivo 'carreiras.json' está mal formatado (falta 'faccoes' ou 'cargoRecrutaId').");
                 return;
             }
-
+            
+            // --- [A CORREÇÃO] ---
+            // Este log agora mostra as Vitórias por Print, provando que é o código novo
             console.log(`[INFO Promoção] Vigia de patentes ATIVADO. Canal: ${canalDePrintsId}. Vitórias por Print: ${config.vitoriasPorPrint}`);
+            // --- FIM DA CORREÇÃO ---
 
         } catch (err) {
             console.error("Falha ao iniciar o promotionHandler:", err);
@@ -57,10 +63,9 @@ const promotionVigia = (client) => {
             const member = message.member;
             if (!member) return;
             
-            // Lógica para encontrar a facção (esta parte está correta)
             let faccaoId = null;
             let faccao = null;
-            const cargoRecrutaId = carreirasConfig.cargoRecrutaId; // Pega o ID do cargo de recruta
+            const cargoRecrutaId = carreirasConfig.cargoRecrutaId; 
             
             for (const id of Object.keys(carreirasConfig.faccoes)) {
                 if (member.roles.cache.has(id)) {
@@ -70,8 +75,9 @@ const promotionVigia = (client) => {
                 }
             }
             
+            // Se não tiver facção E não for recruta, ignora.
             if (!faccaoId && !member.roles.cache.has(cargoRecrutaId)) {
-                return; // Ignora se não for de nenhuma facção E não for um recruta
+                return;
             }
 
             try {
@@ -81,14 +87,12 @@ const promotionVigia = (client) => {
                 // --- Sincronização Automática ---
                 if (!progressao[userId]) {
                     if (!faccaoId) {
-                        // Se é um recruta sem facção, avisa
                         if(member.roles.cache.has(cargoRecrutaId)) {
                             await message.reply({ content: `${member}, não consegui identificar sua facção. Você precisa pegar o cargo da sua facção (Exército, Marinha, etc.) antes de registrar sua primeira vitória.`});
                         }
                         return;
                     }
                     
-                    // Sincroniza um membro que já tem cargos mas não está no JSON
                     let cargoMaisAlto = null;
                     let custoDoCargo = 0;
                     for (let i = faccao.caminho.length - 1; i >= 0; i--) {
@@ -111,7 +115,6 @@ const promotionVigia = (client) => {
                 
                 const userProgress = progressao[userId];
                 
-                // Se o usuário não tiver facção no JSON, mas tiver cargo, atualiza
                 if (!userProgress.factionId && faccaoId) {
                     userProgress.factionId = faccaoId;
                 }
@@ -124,11 +127,14 @@ const promotionVigia = (client) => {
                 }
 
                 // ---- O CONTADOR ----
-                const cargoAntigoId = userProgress.currentRankId; 
-                const vitoriasParaAdicionar = config.vitoriasPorPrint || 1; // Pega o valor da config
+                const cargoAntigoId = userProgress.currentRankId;
+                // --- [A CORREÇÃO] --- 
+                // Pega as vitórias da config, com padrão de 1
+                const vitoriasParaAdicionar = config.vitoriasPorPrint || 1; 
                 
                 await message.react('🔰'); 
-                userProgress.totalWins = userProgress.totalWins + vitoriasParaAdicionar; // Adiciona a quantidade correta
+                userProgress.totalWins = userProgress.totalWins + vitoriasParaAdicionar; 
+                // --- FIM DA CORREÇÃO ---
                 
                 // ---- O AGENTE ----
                 await recalcularRank(member, faccaoDoUsuario, userProgress);
