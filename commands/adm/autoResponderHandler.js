@@ -2,9 +2,7 @@
 
 const { Events } = require('discord.js');
 const path = require('path');
-// --- MUDANÇA AQUI: Importa o logger ---
 const { safeReadJson, logErrorToChannel } = require('../liga/utils/helpers.js');
-// --- FIM DA MUDANÇA ---
 
 const repliesPath = path.join(__dirname, 'auto_replies.json');
 
@@ -13,17 +11,22 @@ const autoResponderHandler = (client) => {
     client.on(Events.MessageCreate, async message => {
         if (message.author.bot) return;
 
-        // --- MUDANÇA AQUI: Adicionado try...catch e logger ---
         try {
             const content = message.content.toLowerCase().trim();
 
-            // --- MUDANÇA AQUI: Passa '[]' como valor padrão ---
-            const replies = await safeReadJson(repliesPath, []);
-            // --- FIM DA MUDANÇA ---
+            // --- [CORREÇÃO AQUI] ---
+            
+            // 1. Lê a configuração inteira (que é um Objeto {})
+            const config = await safeReadJson(repliesPath, {}); 
+
+            // 2. Pega a lista de "replies" DE DENTRO do objeto
+            // Se config.replies não existir, usa uma lista vazia []
+            const repliesArray = config.replies || []; 
+            // --- FIM DA CORREÇÃO ---
 
             // Procura por uma resposta
-            const exactMatch = replies.find(r => r.matchType === 'exact' && content === r.trigger.toLowerCase());
-            const partialMatch = !exactMatch ? replies.find(r => r.matchType === 'partial' && content.includes(r.trigger.toLowerCase())) : null;
+            const exactMatch = repliesArray.find(r => r.matchType === 'exact' && content === r.trigger.toLowerCase());
+            const partialMatch = !exactMatch ? repliesArray.find(r => r.matchType === 'partial' && content.includes(r.trigger.toLowerCase())) : null;
 
             const foundReply = exactMatch || partialMatch;
 
@@ -40,7 +43,6 @@ const autoResponderHandler = (client) => {
             console.error(`Erro no Auto-Responder: ${err.message}`);
             await logErrorToChannel(client, err, message);
         }
-        // --- FIM DA MUDANÇA ---
     });
 };
 
