@@ -39,14 +39,12 @@ const autoResponderHandler = (client) => {
 
             let responseArray = null;
 
-            // --- LÓGICA DE DETECÇÃO ---
+            // --- LÓGICA DE DETECÇÃO (A TUA LÓGICA "TUDO") ---
 
-            // 1. Foi uma Menção? (ex: @Bot coelho)
+            // 1. Foi uma Menção? (ex: @Bot ajuda)
             if (botMentioned && config.mentionTriggers) {
-                // Remove a menção do bot da mensagem para analisar o resto
                 const contentWithoutMention = content.replace(/<@!?\d+>/g, '').trim();
                 
-                // Procura por um trigger de menção (ex: "coelho", "bot", "admin")
                 const foundTrigger = Object.keys(config.mentionTriggers).find(trigger => {
                     return contentWithoutMention.includes(trigger.toLowerCase());
                 });
@@ -57,6 +55,7 @@ const autoResponderHandler = (client) => {
             }
 
             // 2. Foi um Trigger Exato? (ex: "bom dia")
+            // (Só executa se não encontrou uma menção)
             if (!responseArray && config.exactTriggers) {
                 const foundTrigger = Object.keys(config.exactTriggers).find(trigger => {
                     return content === trigger.toLowerCase();
@@ -67,7 +66,8 @@ const autoResponderHandler = (client) => {
                 }
             }
 
-            // 3. Foi uma Palavra-Chave? (ex: "aliança" ou "coelho")
+            // 3. Foi uma Palavra-Chave? (ex: "coelho" numa frase)
+            // (Só executa se não encontrou menção NEM trigger exato)
             if (!responseArray && config.keywordTriggers) {
                  const foundTrigger = Object.keys(config.keywordTriggers).find(trigger => {
                     // \b = "boundary" (limite da palavra). Evita que "ola" ative em "controlar"
