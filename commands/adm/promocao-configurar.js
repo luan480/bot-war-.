@@ -3,7 +3,7 @@
 const { SlashCommandBuilder, PermissionsBitField, ChannelType } = require('discord.js');
 const path = require('path');
 // --- [CORREÇÃO AQUI] ---
-// Importa do helper GLOBAL
+// Importa do helper GLOBAL (liga/utils)
 const { safeReadJson, safeWriteJson } = require('../liga/utils/helpers.js');
 // --- FIM DA CORREÇÃO ---
 
