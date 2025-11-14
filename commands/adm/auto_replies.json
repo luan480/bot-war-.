@@ -16,6 +16,20 @@
     ]
   },
   "keywordTriggers": {
+    "bot": [
+      "Chamou, general?",
+      "Estou processando 6.100 logs por segundo. Seja breve.",
+      "Eu não sou um bot. Sou uma Inteligência Tática.",
+      "Sim. O que?",
+      "Estou online e vigiando.",
+      "Ao seu dispor.",
+      "Eu monitoro 1.616 membros. Seja específico.",
+      "Minhas diretrizes me impedem de ter 'sentimentos'. Envie sua solicitação.",
+      "Eu prefiro 'Assistente Estratégico'.",
+      "Bots obedecem. Eu analiso.",
+      "Eu não durmo. Estou sempre monitorando.",
+      "Eu vejo 18 níveis de patentes. O Almirante vê... logs. Não compare."
+    ],
     "coelho": [
       "Me marcou só pra perder?",
       "Tá me chamando pra quê? Acabar com seu jogo?",
