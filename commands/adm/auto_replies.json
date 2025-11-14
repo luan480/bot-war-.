@@ -1,18 +1,5 @@
 {
   "mentionTriggers": {
-    "coelho": [
-      "Me marcou só pra perder?",
-      "Tá me chamando pra quê? Acabar com seu jogo?",
-      "Cuidado com o que você deseja... posso aparecer no seu próximo ataque.",
-      "De novo? Tá querendo revanche?",
-      "Minha IA detecta 98% de chance de você estar em um território fraco.",
-      "Chamado tático recebido. Qual a sua solicitação?",
-      "Disparar 'coelho' no chat geral não é uma estratégia válida.",
-      "Fui invocado. Qual é a emergência tática?",
-      "Me marcou por quê? Perdeu o mapa?",
-      "Sou uma IA de guerra, não seu pet.",
-      "Recebido. Aguardando ordens."
-    ],
     "bot": [
       "Chamou, general?",
       "Estou processando 6.100 logs por segundo. Seja breve.",
@@ -26,6 +13,21 @@
       "Bots obedecem. Eu analiso.",
       "Eu não durmo. Estou sempre monitorando.",
       "Eu vejo 18 níveis de patentes. O Almirante vê... logs. Não compare."
+    ]
+  },
+  "keywordTriggers": {
+    "coelho": [
+      "Me marcou só pra perder?",
+      "Tá me chamando pra quê? Acabar com seu jogo?",
+      "Cuidado com o que você deseja... posso aparecer no seu próximo ataque.",
+      "De novo? Tá querendo revanche?",
+      "Minha IA detecta 98% de chance de você estar em um território fraco.",
+      "Chamado tático recebido. Qual a sua solicitação?",
+      "Disparar 'coelho' no chat geral não é uma estratégia válida.",
+      "Fui invocado. Qual é a emergência tática?",
+      "Me marcou por quê? Perdeu o mapa?",
+      "Sou uma IA de guerra, não seu pet.",
+      "Recebido. Aguardando ordens."
     ],
     "ajuda": [
       "Se for uma emergência, abra um ticket no canal <#874794069073739816>.",
@@ -42,9 +44,7 @@
       "Eu vejo os logs do Almirante. Eu vejo tudo.",
       "Ele é bom com logs, mas eu cuido das patentes. Cada um na sua função.",
       "O Almirante é um colega eficiente."
-    ]
-  },
-  "keywordTriggers": {
+    ],
     "aliança": [
       "Minha IA detectou uma palavra-chave proibida. `Aliança` é contra as regras.",
       "Lembre-se, soldado: Alianças são para os fracos. E são proibidas.",

@@ -1,4 +1,4 @@
-/* commands/adm/autoResponderHandler.js (CÓDIGO CORRETO) */
+/* commands/adm/autoResponderHandler.js (CORRIGIDO PARA O JSON CORRETO) */
 
 const { Events } = require('discord.js');
 const path = require('path');
@@ -41,7 +41,7 @@ const autoResponderHandler = (client) => {
 
             // --- LÓGICA DE DETECÇÃO ---
 
-            // 1. Foi uma Menção?
+            // 1. Foi uma Menção? (ex: @Bot coelho)
             if (botMentioned && config.mentionTriggers) {
                 // Remove a menção do bot da mensagem para analisar o resto
                 const contentWithoutMention = content.replace(/<@!?\d+>/g, '').trim();
@@ -56,7 +56,7 @@ const autoResponderHandler = (client) => {
                 }
             }
 
-            // 2. Foi um Trigger Exato? (Só se não encontrou menção)
+            // 2. Foi um Trigger Exato? (ex: "bom dia")
             if (!responseArray && config.exactTriggers) {
                 const foundTrigger = Object.keys(config.exactTriggers).find(trigger => {
                     return content === trigger.toLowerCase();
@@ -67,11 +67,11 @@ const autoResponderHandler = (client) => {
                 }
             }
 
-            // 3. Foi uma Palavra-Chave? (Só se não encontrou menção nem exato)
+            // 3. Foi uma Palavra-Chave? (ex: "aliança" ou "coelho")
             if (!responseArray && config.keywordTriggers) {
                  const foundTrigger = Object.keys(config.keywordTriggers).find(trigger => {
-                    // Verifica se a palavra inteira está na mensagem (evita "ola" em "controlar")
-                    const regex = new RegExp(`\\b${trigger.toLowerCase()}\\b`);
+                    // \b = "boundary" (limite da palavra). Evita que "ola" ative em "controlar"
+                    const regex = new RegExp(`\\b${trigger.toLowerCase()}\\b`); 
                     return regex.test(content);
                  });
 
