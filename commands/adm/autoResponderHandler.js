@@ -16,15 +16,16 @@ const autoResponderHandler = (client) => {
 
             // --- [CORREÇÃO AQUI] ---
             
-            // 1. Lê a configuração inteira (que é um Objeto {})
+            // 1. Lê a configuração inteira (que é um Objeto {}),
+            //    passando {} como valor padrão.
             const config = await safeReadJson(repliesPath, {}); 
 
             // 2. Pega a lista de "replies" DE DENTRO do objeto
-            // Se config.replies não existir, usa uma lista vazia []
+            //    Se config.replies não existir, usa uma lista vazia []
             const repliesArray = config.replies || []; 
             // --- FIM DA CORREÇÃO ---
 
-            // Procura por uma resposta
+            // Procura por uma resposta na lista correta
             const exactMatch = repliesArray.find(r => r.matchType === 'exact' && content === r.trigger.toLowerCase());
             const partialMatch = !exactMatch ? repliesArray.find(r => r.matchType === 'partial' && content.includes(r.trigger.toLowerCase())) : null;
 
