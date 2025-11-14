@@ -10,9 +10,7 @@ const logHandler = require('../commands/adm/logHandler.js');
 const welcomeHandler = require('../commands/adm/welcomeHandler.js');
 const autoResponderHandler = require('../commands/adm/autoResponderHandler.js'); 
 const statusHandler = require('../commands/adm/statusHandler.js');
-// --- MUDANÇA AQUI ---
-const { connectToChannel } = require('../commands/adm/voiceHandler.js');
-// --- FIM DA MUDANÇA ---
+//const { connectToChannel } = require('../commands/adm/voiceHandler.js'); // <-- COMENTA ESTA LINHA
 
 module.exports = {
 	name: Events.ClientReady,
@@ -60,12 +58,13 @@ module.exports = {
 		}
 
         // --- MUDANÇA AQUI: Tenta conectar ao canal de voz AFK ---
+        /* <-- COMENTA ESTAS LINHAS
         try {
             console.log("[INFO] Tentando conectar ao canal de voz AFK...");
             await connectToChannel(client);
         } catch (err) {
             console.error("❌ Falha ao conectar no canal de voz AFK:", err);
         }
-        // --- FIM DA MUDANÇA ---
+        */ // <-- ATÉ AQUI
 	},
 };
