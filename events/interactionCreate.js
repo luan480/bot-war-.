@@ -1,15 +1,14 @@
 /* events/interactionCreate.js (Refatorado, Corrigido e com Logger) */
 const { Events } = require('discord.js');
-// --- MUDANÇA AQUI: Importa o novo Logger ---
 const { logErrorToChannel } = require('../commands/liga/utils/helpers.js');
-// --- FIM DA MUDANÇA ---
 
 module.exports = {
 	name: Events.InteractionCreate,
 	async execute(interaction, client) { // O 'client' é passado como último argumento
 		
 		// --- Handler de Comandos (Slash Commands) ---
-		if (interaction.isCommand()) {
+		if (interaction.isCommand() || interaction.isAutocomplete()) {
+			// (O 'isAutocomplete' é para os teus comandos de música)
 			const command = client.commands.get(interaction.commandName);
             
 			if (!command) {
@@ -18,12 +17,17 @@ module.exports = {
             }
 
 			try {
-				await command.execute(interaction);
+				if (interaction.isAutocomplete()) {
+					// Se for um comando de autocompletar (ex: /play), chama o 'autocomplete'
+					if (command.autocomplete) {
+						await command.autocomplete(interaction);
+					}
+				} else {
+					// Se for um comando normal, chama o 'execute'
+					await command.execute(interaction);
+				}
 			} catch (err) {
-                // --- MUDANÇA AQUI ---
-				// Em vez de só logar na consola, envia para o canal
                 await logErrorToChannel(client, err, interaction);
-                // --- FIM DA MUDANÇA ---
 				try {
 					const errorMessage = `❌ **Erro Crítico!** Ocorreu um problema:\n\n\`\`\`${err.message}\`\`\``;
 					if (interaction.replied || interaction.deferred) {
@@ -41,7 +45,11 @@ module.exports = {
 		// --- Roteador de Botões Otimizado ---
 		if (interaction.isButton()) {
             const { buttonHandlers } = client; 
+            
+            // --- [A CORREÇÃO CRÍTICA ESTÁ AQUI] ---
+            // Esta linha estava em falta, causando o erro 'undefined'
             const { customId } = interaction;
+            // --- FIM DA CORREÇÃO ---
             
 			try {
                 // IDs da LIGA
@@ -65,10 +73,7 @@ module.exports = {
 				}
 
 			} catch (err) {
-                // --- MUDANÇA AQUI ---
-				// Em vez de só logar na consola, envia para o canal
                 await logErrorToChannel(client, err, interaction);
-                // --- FIM DA MUDANÇA ---
 				try {
 					if (!interaction.replied && !interaction.deferred) {
 						await interaction.reply({ content: '❌ Ocorreu um erro ao usar este botão.', ephemeral: true });
