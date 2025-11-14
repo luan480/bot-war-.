@@ -1,75 +1,47 @@
-/* ========================================================================
-   HANDLER ATUALIZADO: commands/adm/autoResponderHandler.js (V3 - "Inteligente")
-   
-   - Agora entende 3 tipos de gatilho: Menção, Palavra-Chave e Exato.
-   - Lê o novo 'auto_replies.json' estruturado.
-   ======================================================================== */
-   
+/* commands/adm/autoResponderHandler.js (CORRIGIDO) */
+
 const { Events } = require('discord.js');
 const path = require('path');
-const { safeReadJson } = require('../liga/utils/helpers.js');
+// --- MUDANÇA AQUI: Importa o logger ---
+const { safeReadJson, logErrorToChannel } = require('../liga/utils/helpers.js');
+// --- FIM DA MUDANÇA ---
 
 const repliesPath = path.join(__dirname, 'auto_replies.json');
 
-// Função para pegar uma resposta aleatória
-function getRandomReply(replies) {
-    if (!replies || replies.length === 0) return null;
-    return replies[Math.floor(Math.random() * replies.length)];
-}
+const autoResponderHandler = (client) => {
+    
+    client.on(Events.MessageCreate, async message => {
+        if (message.author.bot) return;
 
-module.exports = (client) => {
-
-    client.on(Events.MessageCreate, async (message) => {
-        if (!message.guild || message.author.bot) return;
-
-        const content = message.content.toLowerCase();
-        if (!content) return;
-
+        // --- MUDANÇA AQUI: Adicionado try...catch e logger ---
         try {
-            const repliesConfig = safeReadJson(repliesPath);
-            let replyMessage = null;
+            const content = message.content.toLowerCase().trim();
 
-            // --- TIPO 1: GATILHO DE MENÇÃO ---
-            // Se o bot foi mencionado
-            if (message.mentions.has(client.user.id)) {
-                for (const trigger in repliesConfig.mentionTriggers) {
-                    // \b é "word boundary" - impede que "ola" pegue "bola"
-                    const regex = new RegExp(`\\b${trigger}\\b`, 'i');
-                    if (regex.test(content)) {
-                        replyMessage = getRandomReply(repliesConfig.mentionTriggers[trigger]);
-                        break;
-                    }
-                }
-            }
+            // --- MUDANÇA AQUI: Passa '[]' como valor padrão ---
+            const replies = await safeReadJson(repliesPath, []);
+            // --- FIM DA MUDANÇA ---
 
-            // --- TIPO 2: GATILHO DE PALAVRA-CHAVE ---
-            // Se não foi uma menção, checa por palavras-chave
-            if (!replyMessage) {
-                for (const trigger in repliesConfig.keywordTriggers) {
-                    const regex = new RegExp(`\\b${trigger}\\b`, 'i');
-                    if (regex.test(content)) {
-                        replyMessage = getRandomReply(repliesConfig.keywordTriggers[trigger]);
-                        break;
-                    }
-                }
-            }
+            // Procura por uma resposta
+            const exactMatch = replies.find(r => r.matchType === 'exact' && content === r.trigger.toLowerCase());
+            const partialMatch = !exactMatch ? replies.find(r => r.matchType === 'partial' && content.includes(r.trigger.toLowerCase())) : null;
 
-            // --- TIPO 3: GATILHO EXATO ---
-            // Se ainda não achou, checa por gatilho exato (só a palavra)
-            if (!replyMessage) {
-                const exactMatch = repliesConfig.exactTriggers[content];
-                if (exactMatch) {
-                    replyMessage = getRandomReply(exactMatch);
-                }
-            }
-            
-            // --- Resposta ---
-            if (replyMessage) {
-                await message.reply(replyMessage);
-            }
+            const foundReply = exactMatch || partialMatch;
 
+            if (foundReply) {
+                // Substitui placeholders (variáveis)
+                let response = foundReply.response
+                    .replace(/{user}/g, message.author.toString())
+                    .replace(/{bot}/g, client.user.toString());
+
+                await message.channel.send(response);
+            }
         } catch (err) {
-            console.error("Erro no Auto-Responder:", err);
+            // Se o auto-responder falhar, envia o erro para o teu canal de logs
+            console.error(`Erro no Auto-Responder: ${err.message}`);
+            await logErrorToChannel(client, err, message);
         }
+        // --- FIM DA MUDANÇA ---
     });
 };
+
+module.exports = autoResponderHandler;

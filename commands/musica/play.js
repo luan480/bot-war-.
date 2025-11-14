@@ -1,4 +1,4 @@
-/* commands/musica/play.js */
+/* commands/musica/play.js (ATUALIZADO) */
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const play = require('play-dl');
@@ -20,15 +20,13 @@ module.exports = {
         const query = interaction.options.getString('musica');
         const voiceChannel = interaction.member.voice.channel;
 
-        // 1. Verifica se o usuário está num canal de voz
         if (!voiceChannel) {
             return interaction.editReply('❌ Você precisa de estar num canal de voz para tocar música!');
         }
 
-        // 2. Procura a música
         const searchResults = await play.search(query, {
             limit: 1,
-            source: { youtube: 'video', spotify: 'track' } // Procura vídeos no YT e músicas no Spotify
+            source: { youtube: 'video', spotify: 'track' }
         });
 
         if (searchResults.length === 0) {
@@ -37,7 +35,6 @@ module.exports = {
 
         const video = searchResults[0];
         
-        // 3. Prepara o objeto da música
         const song = {
             title: video.title,
             url: video.url,
@@ -45,14 +42,13 @@ module.exports = {
             requestedBy: interaction.member,
         };
 
-        // 4. Pega a fila do servidor
-        const queue = getQueue(interaction.guild.id);
-        queue.textChannel = interaction.channel; // Define onde as mensagens "Tocando agora" vão aparecer
+        // --- MUDANÇA AQUI: Passa o 'client' ---
+        const queue = getQueue(interaction.guild.id, interaction.client);
+        // --- FIM DA MUDANÇA ---
+        queue.textChannel = interaction.channel; 
 
-        // 5. Adiciona a música à fila
         queue.songs.push(song);
 
-        // 6. Entra no canal (se ainda não estiver lá)
         if (!queue.connection) {
             try {
                 await joinChannel(queue, voiceChannel);
@@ -62,12 +58,11 @@ module.exports = {
             }
         }
 
-        // 7. Toca a música (se não estiver a tocar) ou avisa que adicionou à fila
         if (queue.isPlaying) {
             await interaction.editReply(`✅ Adicionado à fila: **${song.title}**`);
         } else {
             await interaction.editReply(`Iniciando a fila com: **${song.title}**`);
-            playNextSong(queue); // Começa a tocar
+            playNextSong(queue);
         }
     },
 };

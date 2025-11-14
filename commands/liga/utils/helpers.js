@@ -4,54 +4,94 @@ const fs = require('fs').promises;
 const path = require('path');
 const { EmbedBuilder, codeBlock } = require('discord.js');
 
-/* ... funções safeReadJson, safeWriteJson, capitalize ... */
-/* ... (O código delas que te enviei na última resposta continua igual) ... */
-const safeReadJson = async (filePath) => {
+// --- MUDANÇA AQUI: safeReadJson agora aceita um 'defaultValue' ---
+/**
+ * Lê um arquivo JSON de forma segura e assíncrona.
+ * @param {string} filePath - O caminho para o arquivo JSON.
+ * @param {object | Array} [defaultValue] - O valor padrão (ex: {} ou []) para criar o ficheiro se não existir.
+ * @returns {Promise<object | Array>} O objeto JSON lido.
+ */
+const safeReadJson = async (filePath, defaultValue = {}) => {
+// --- FIM DA MUDANÇA ---
     try {
-        await fs.access(filePath).catch(async () => {
-            await fs.writeFile(filePath, JSON.stringify({}, null, 2));
-        });
-        
+        // Tenta ler o arquivo
         const data = await fs.readFile(filePath, 'utf8');
-        return JSON.parse(data.trim() === '' ? '{}' : data);
+        return JSON.parse(data.trim() === '' ? JSON.stringify(defaultValue) : data);
     } catch (e) {
-        console.error(`Erro ao ler ${filePath}:`, e);
-        return {};
+        if (e.code === 'ENOENT') {
+            console.log(`[INFO] Arquivo ${filePath} não encontrado, criando um novo.`);
+            try {
+                await fs.mkdir(path.dirname(filePath), { recursive: true });
+                // --- MUDANÇA AQUI: Usa o 'defaultValue' ao criar ---
+                await fs.writeFile(filePath, JSON.stringify(defaultValue, null, 2));
+                return defaultValue;
+                // --- FIM DA MUDANÇA ---
+            } catch (writeErr) {
+                console.error(`Erro fatal ao tentar criar ${filePath}:`, writeErr);
+                return defaultValue;
+            }
+        }
+        console.error(`Erro ao ler ${filePath}, reescrevendo o arquivo.`, e);
+        try {
+             // --- MUDANÇA AQUI: Usa o 'defaultValue' ao reescrever ---
+            await fs.writeFile(filePath, JSON.stringify(defaultValue, null, 2));
+        } catch (writeErr) {
+            console.error(`Erro fatal ao tentar reescrever ${filePath}:`, writeErr);
+        }
+        return defaultValue;
     }
 };
+
+/**
+ * Escreve dados em um arquivo JSON de forma segura e assíncrona.
+ * (Função original - sem alteração)
+ */
 const safeWriteJson = async (filePath, data) => {
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+    try {
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+    } catch (e) {
+        console.error(`Erro fatal ao escrever em ${filePath}:`, e);
+    }
 };
+
+/**
+ * Coloca a primeira letra de uma string em maiúscula.
+ * (Função original - sem alteração)
+ */
 const capitalize = (s) => {
     if (typeof s !== 'string' || s.length === 0) return '';
     return s.charAt(0).toUpperCase() + s.slice(1);
 };
-/* ... Fim das funções originais ... */
 
-
-// --- MUDANÇA AQUI: Logger atualizado para aceitar 'Message' ou 'Interaction' ---
 
 /**
  * Envia um log de erro detalhado para um canal do Discord.
- * @param {import('discord.js').Client} client O cliente do bot.
- * @param {Error} error O objeto do erro que ocorreu.
- * @param {import('discord.js').Interaction | import('discord.js').Message | null} [context] A interação ou mensagem que causou o erro (opcional).
+ * (Função original - sem alteração)
  */
 const logErrorToChannel = async (client, error, context = null) => {
-    console.error('[ERRO CAPTURADO]', error); // Mantém o log na consola
+    console.error('[ERRO CAPTURADO]', error); 
+
+    // --- MUDANÇA AQUI: Se o client não for passado, tenta pegar do contexto ---
+    const logClient = client || context?.client;
+    if (!logClient) {
+        console.error('[Logger] Não foi possível obter o "client" para enviar o log de erro.');
+        return;
+    }
+    // --- FIM DA MUDANÇA ---
 
     try {
         const logConfigPath = path.join(__dirname, '../../adm/log_config.json');
-        const config = await safeReadJson(logConfigPath);
+        const config = await safeReadJson(logConfigPath); 
 
         if (!config.botErrorLog) {
             console.error('[Logger] Canal de log de erros (botErrorLog) não configurado no log_config.json.');
             return;
         }
 
-        const channel = await client.channels.fetch(config.botErrorLog).catch(() => null);
+        const channel = await logClient.channels.fetch(config.botErrorLog).catch(() => null);
         if (!channel || !channel.isTextBased()) {
-            console.error(`[Logger] Não foi possível encontrar o canal de log ${config.botErrorLog} ou não é um canal de texto.`);
+            console.error(`[Logger] Não foi possível encontrar o canal de log ${config.botErrorLog}.`);
             return;
         }
         
@@ -60,7 +100,6 @@ const logErrorToChannel = async (client, error, context = null) => {
             .setTimestamp();
 
         if (context) {
-            // Verifica se é uma Interação
             if (context.isInteraction) {
                 let commandName = 'N/A';
                 if (context.isCommand()) commandName = `/${context.commandName}`;
@@ -77,12 +116,11 @@ const logErrorToChannel = async (client, error, context = null) => {
                         { name: 'Stack (Resumido)', value: codeBlock(error.stack.substring(0, 1000)) }
                     );
             } 
-            // Verifica se é uma Mensagem
             else if (context.author) {
                 embed
                     .setTitle('❌ Erro num Handler de Mensagem (Vigia)')
                     .addFields(
-                        { name: 'Handler', value: 'Provavelmente `promotionHandler.js`', inline: false },
+                        { name: 'Handler', value: 'Provavelmente `promotionHandler.js` ou `autoResponderHandler.js`', inline: false },
                         { name: 'Utilizador', value: `${context.author.tag} (${context.author.id})`, inline: true },
                         { name: 'Canal', value: `${context.channel.name} (${context.channel.id})`, inline: true },
                         { name: 'Mensagem (Link)', value: `[Clique aqui](${context.url})`, inline: true },
@@ -91,10 +129,9 @@ const logErrorToChannel = async (client, error, context = null) => {
                     );
             }
         } else {
-            // Erro Crítico (Crash)
             embed
                 .setTitle('🚨 ERRO CRÍTICO (Uncaught Exception)')
-                .setDescription('O bot encontrou um erro fatal que não foi tratado. O processo pode ter sido reiniciado.')
+                .setDescription('O bot encontrou um erro fatal que não foi tratado.')
                 .addFields(
                     { name: 'Erro', value: codeBlock(error.message) },
                     { name: 'Stack', value: codeBlock(error.stack.substring(0, 3900)) }
@@ -107,7 +144,6 @@ const logErrorToChannel = async (client, error, context = null) => {
         console.error('[ERRO NO LOGGER] Não foi possível enviar o log de erro para o Discord:', logErr);
     }
 };
-// --- FIM DA MUDANÇA ---
 
 
 module.exports = { 
