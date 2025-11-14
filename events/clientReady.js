@@ -1,19 +1,18 @@
-/* events/clientReady.js (Otimizado) */
+/* events/clientReady.js (ATUALIZADO) */
 const { Events } = require('discord.js');
 
 // --- Carregadores de Módulos (Vigias e Handlers) ---
 const ligaButtonHandler = require('../commands/liga/buttons.js');
 const carreiraButtonHandler = require('../commands/adm/carreiraButtonHandler.js');
-const promotionVigia = require('../commands/adm/promotionHandler.js');
-
-// --- [MELHORIA] Importa o novo ROTEADOR de tickets ---
+const promotionVigia = require('../commands/adm/promotionHandler.js'); 
 const ticketButtonRouter = require('../commands/ticket/buttonRouter.js'); 
-// --- FIM DA MELHORIA ---
-
 const logHandler = require('../commands/adm/logHandler.js'); 
 const welcomeHandler = require('../commands/adm/welcomeHandler.js');
 const autoResponderHandler = require('../commands/adm/autoResponderHandler.js'); 
 const statusHandler = require('../commands/adm/statusHandler.js');
+// --- MUDANÇA AQUI ---
+const { connectToChannel } = require('../commands/adm/voiceHandler.js');
+// --- FIM DA MUDANÇA ---
 
 module.exports = {
 	name: Events.ClientReady,
@@ -21,15 +20,12 @@ module.exports = {
 	async execute(client) { // O 'client' é recebido aqui
 		console.log(`🤖 ${client.user.tag} está online!`);
     
-        // --- [MELHORIA] Disponibiliza os Handlers de Botões para o client ---
-        // (Agrupámos os handlers de ticket)
         client.buttonHandlers = {
             liga: ligaButtonHandler,
             carreira: carreiraButtonHandler,
-            ticket: ticketButtonRouter // <-- Agora só temos uma entrada para 'ticket'
+            ticket: ticketButtonRouter
         };
         console.log("[INFO] Handlers de botões carregados.");
-        // --- FIM DA MELHORIA ---
 
 		// --- Ativa os Vigias ---
 		try {
@@ -62,5 +58,14 @@ module.exports = {
 		} catch (err) {
 			console.error("❌ Falha ao ativar o Auto-Responder:", err);
 		}
+
+        // --- MUDANÇA AQUI: Tenta conectar ao canal de voz AFK ---
+        try {
+            console.log("[INFO] Tentando conectar ao canal de voz AFK...");
+            await connectToChannel(client);
+        } catch (err) {
+            console.error("❌ Falha ao conectar no canal de voz AFK:", err);
+        }
+        // --- FIM DA MUDANÇA ---
 	},
 };
