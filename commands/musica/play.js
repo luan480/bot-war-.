@@ -29,8 +29,7 @@ module.exports = {
             const queue = getQueue(interaction.guild.id, interaction.client);
             queue.textChannel = interaction.channel;
 
-            // --- MUDANÇA AQUI: Lógica de Pesquisa Melhorada ---
-
+            // --- [CORREÇÃO AQUI] ---
             // 1. Valida o que o usuário enviou
             const validation = await play.validate(query);
 
@@ -100,7 +99,7 @@ module.exports = {
                 return interaction.editReply('❌ Link ou tipo de música não suportado.');
             }
             
-            // --- FIM DA MUDANÇA ---
+            // --- FIM DA CORREÇÃO ---
 
             // 6. Entra no canal (se ainda não estiver lá)
             if (!queue.connection) {
