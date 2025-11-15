@@ -66,7 +66,7 @@ const promotionVigia = async (client) => {
         let faccao = null;
         const cargoRecrutaId = carreirasConfig.cargoRecrutaId; 
         // A variável 'facoes' agora é definida AQUI, lendo do 'carreirasConfig'
-        const faccoes = carreirasConfig.faccoes; 
+        const faccoes = carreirasConfig.facoes; 
         // --- [FIM DA CORREÇÃO] ---
 
         // 1. Caminho Rápido: Cargo principal
