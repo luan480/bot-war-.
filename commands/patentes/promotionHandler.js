@@ -1,6 +1,6 @@
-/* commands/patentes/promotionHandler.js (CORREÇÃO LÓGICA v2 - Sincronização de Veterano) */
+/* commands/patentes/promotionHandler.js (v4 - Botão no Anúncio Público) */
 
-const { Events, EmbedBuilder } = require('discord.js');
+const { Events, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const path = require('path');
 // Importa dos helpers globais
 const { safeReadJson, safeWriteJson, logErrorToChannel } = require('../liga/utils/helpers.js'); 
@@ -54,13 +54,13 @@ const promotionVigia = async (client) => {
         const member = message.member;
         if (!member) return;
         
-        // --- [INÍCIO DA LÓGICA CORRIGIDA] ---
+        // --- LÓGICA DE IDENTIFICAÇÃO DE FACÇÃO (v2) ---
         let faccaoId = null;
         let faccao = null;
         const cargoRecrutaId = carreirasConfig.cargoRecrutaId; 
         const faccoes = carreirasConfig.faccoes;
 
-        // 1. Caminho Rápido: Verifica se tem o cargo principal da facção
+        // 1. Caminho Rápido: Cargo principal
         for (const id of Object.keys(facoes)) {
             if (member.roles.cache.has(id)) {
                 faccaoId = id;
@@ -69,31 +69,26 @@ const promotionVigia = async (client) => {
             }
         }
 
-        // 2. Caminho Lento (Sincronização de Veterano): Se não achou,
-        // procura por QUALQUER cargo de patente para descobrir a facção
+        // 2. Caminho Lento (Sincronização de Veterano)
         if (!faccaoId) {
             for (const fId of Object.keys(facoes)) {
                 const f = faccoes[fId];
-                // Loopa por todas as patentes no 'caminho' da facção
                 for (const rank of f.caminho) {
                     if (member.roles.cache.has(rank.id)) {
                         faccaoId = fId;
                         faccao = f;
-                        // console.log(`[Promoção] Membro ${member.user.tag} identificado como ${f.nome} via cargo de patente ${rank.nome}.`);
-                        break; // Sai do loop de patentes
+                        break; 
                     }
                 }
-                if (faccaoId) break; // Sai do loop de facções
+                if (faccaoId) break; 
             }
         }
         
-        // 3. Verificação Final: Se não achou NENHUM cargo de facção/patente
-        // E TAMBÉM não é um Recruta, aí sim ignora.
+        // 3. Verificação Final
         if (!faccaoId && !member.roles.cache.has(cargoRecrutaId)) {
-            // console.log(`[Promoção] Ignorando print de ${member.user.tag}: Sem cargo de facção ou recruta.`);
             return; 
         }
-        // --- [FIM DA LÓGICA CORRIGIDA] ---
+        // --- FIM DA LÓGICA DE IDENTIFICAÇÃO ---
 
         try {
             const progressao = await safeReadJson(progressaoPath);
@@ -101,8 +96,6 @@ const promotionVigia = async (client) => {
             
             // Se o usuário não existe no progressao.json (primeiro print)
             if (!progressao[userId]) {
-                
-                // Se ele for recruta e não tiver pego cargo de facção ainda
                 if (!faccaoId) { 
                     if(member.roles.cache.has(cargoRecrutaId)) {
                         await message.reply({ content: `${member}, não consegui identificar sua facção. Você precisa pegar o cargo da sua facção (Exército, Marinha, etc.) antes de registrar sua primeira vitória.`});
@@ -110,24 +103,23 @@ const promotionVigia = async (client) => {
                     return;
                 }
                 
-                // --- SINCRONIZAÇÃO DE VETERANO (A MÁGICA ACONTECE AQUI) ---
+                // SINCRONIZAÇÃO DE VETERANO
                 let cargoMaisAlto = null;
                 let custoDoCargo = 0;
                 
-                // 'faccao' foi definido na lógica corrigida acima
                 for (let i = faccao.caminho.length - 1; i >= 0; i--) {
                     const rank = faccao.caminho[i];
                     if (member.roles.cache.has(rank.id)) {
                         cargoMaisAlto = rank;
                         custoDoCargo = rank.custo; 
-                        break; // Pega o cargo mais alto que ele tiver
+                        break; 
                     }
                 }
 
                 progressao[userId] = {
                     factionId: faccaoId, 
                     currentRankId: cargoMaisAlto ? cargoMaisAlto.id : null,
-                    totalWins: custoDoCargo // Registra as vitórias do cargo atual
+                    totalWins: custoDoCargo 
                 };
                 
                 console.log(`[Promoção] Usuário VETERANO ${member.user.tag} sincronizado. Começando com ${custoDoCargo} vitórias.`);
@@ -135,12 +127,10 @@ const promotionVigia = async (client) => {
             
             const userProgress = progressao[userId];
             
-            // Se ele era recruta e acabou de pegar a facção
             if (!userProgress.factionId && faccaoId) {
                 userProgress.factionId = faccaoId;
             }
             
-            // Segurança: Garante que a facção do usuário existe
             const faccaoDoUsuario = carreirasConfig.facoes[userProgress.factionId];
             if (!faccaoDoUsuario) {
                  console.error(`[Promoção] Usuário ${member.user.tag} tem uma facção ID (${userProgress.factionId}) que não existe no carreiras.json.`);
@@ -151,42 +141,55 @@ const promotionVigia = async (client) => {
             const cargoAntigoId = userProgress.currentRankId; 
             const vitoriasParaAdicionar = config.vitoriasPorPrint || 1; 
             
-            await message.react('🔰'); // REAGE
-            userProgress.totalWins = userProgress.totalWins + vitoriasParaAdicionar; // SOMA PONTOS
+            await message.react('🔰'); 
+            userProgress.totalWins = userProgress.totalWins + vitoriasParaAdicionar; 
             
-            // Recalcula o rank
             await recalcularRank(member, faccaoDoUsuario, userProgress);
-            
-            // Salva no JSON
             await safeWriteJson(progressaoPath, progressao);
             
             const cargoNovoId = userProgress.currentRankId; 
             
             console.log(`[Promoção] +${vitoriasParaAdicionar} vitórias para ${member.user.tag}. Total: ${userProgress.totalWins}. Cargo atual: ${cargoNovoId}`);
 
-            // Se mudou de cargo, anuncia
+            // --- [INÍCIO DA LÓGICA DE NOTIFICAÇÃO ATUALIZADA] ---
             if (cargoAntigoId !== cargoNovoId) {
                 const novoCargo = faccaoDoUsuario.caminho.find(r => r.id === cargoNovoId);
-                const canalDeAnuncio = await client.channels.fetch(faccaoDoUsuario.canalDeAnuncio).catch(() => null);
                 
-                if (canalDeAnuncio && novoCargo) {
-                    const embed = new EmbedBuilder()
-                        .setColor('#F1C40F') 
-                        .setAuthor({ name: `PROMOÇÃO: ${member.user.username}`, iconURL: member.user.displayAvatarURL() })
-                        .setThumbnail(faccaoDoUsuario.nome.includes("Exército") ? "https://i.imgur.com/yBfXTrG.png" : faccaoDoUsuario.nome.includes("Marinha") ? "https://i.imgur.com/GjNlGDu.png" : faccaoDoUsuario.nome.includes("Aeronáutica") ? "https://i.imgur.com/4lGjYQx.png" : "https://i.imgur.com/3QGjGjB.png")
-                        .addFields(
-                            { name: "Facção", value: faccaoDoUsuario.nome, inline: true },
-                            { name: "Nova Patente", value: `**${novoCargo.nome}**`, inline: true },
-                            { name: "Total de Vitórias", value: `🏆 ${userProgress.totalWins}`, inline: true }
-                        )
-                        .setTimestamp();
+                // 1. Criar o Embed Bonito
+                const embedPromocao = new EmbedBuilder()
+                    .setColor('#F1C40F') 
+                    .setAuthor({ name: `PROMOÇÃO: ${member.user.username}`, iconURL: member.user.displayAvatarURL() })
+                    .setThumbnail(faccaoDoUsuario.nome.includes("Exército") ? "https://i.imgur.com/yBfXTrG.png" : faccaoDoUsuario.nome.includes("Marinha") ? "https://i.imgur.com/GjNlGDu.png" : faccaoDoUsuario.nome.includes("Aeronáutica") ? "https://i.imgur.com/4lGjYQx.png" : "https://i.imgur.com/3QGjGjB.png")
+                    .addFields(
+                        { name: "Facção", value: faccaoDoUsuario.nome, inline: true },
+                        { name: "Nova Patente", value: `**${novoCargo.nome}**`, inline: true },
+                        { name: "Total de Vitórias", value: `🏆 ${userProgress.totalWins}`, inline: true }
+                    )
+                    .setTimestamp();
 
+                // 2. Criar o Botão de Status
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`carreira_status_${member.id}`) // ID único para o botão
+                            .setLabel('Ver Meu Status de Carreira')
+                            .setStyle(ButtonStyle.Primary)
+                            .setEmoji('📊')
+                    );
+
+                // 3. Enviar Anúncio Público (COM O BOTÃO)
+                const canalDeAnuncio = await client.channels.fetch(faccaoDoUsuario.canalDeAnuncio).catch(() => null);
+                if (canalDeAnuncio && novoCargo) {
                     await canalDeAnuncio.send({ 
                         content: `🎉 **PROMOÇÃO!** 🎉\nParabéns ${member}, você foi promovido!`, 
-                        embeds: [embed] 
+                        embeds: [embedPromocao],
+                        components: [row] // <-- O botão agora vai aqui
                     });
                 }
+                
+                // 4. Lógica de DM removida (CONFORME PEDIDO)
             }
+            // --- [FIM DA LÓGICA DE NOTIFICAÇÃO] ---
 
         } catch (err) {
             console.error(`Erro ao processar print de patente [${message.url}]: ${err.message}`);

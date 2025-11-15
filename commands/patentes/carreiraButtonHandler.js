@@ -1,30 +1,40 @@
-/* commands/adm/carreiraButtonHandler.js (SIMPLIFICADO) */
+/* commands/patentes/carreiraButtonHandler.js (Necessário para o botão funcionar) */
 
 const { EmbedBuilder, PermissionsBitField, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const path = require('path');
-const { safeReadJson, safeWriteJson } = require('../liga/utils/helpers.js');
-// --- MUDANÇA AQUI: Importa a nova função ---
+// Importa dos helpers globais
+const { safeReadJson, safeWriteJson, logErrorToChannel } = require('../liga/utils/helpers.js');
+// Importa dos helpers da pasta 'patentes'
 const { handlePromotion, generateCareerEmbed } = require('./carreiraHelpers.js');
-// --- FIM DA MUDANÇA ---
 
+// Caminhos dos "cérebros"
 const carreirasPath = path.join(__dirname, 'carreiras.json');
 const progressaoPath = path.join(__dirname, 'progressao.json');
 
-module.exports = async (interaction, client) => {
-    
+// Função principal que será chamada pelo events/interactionCreate.js
+const carreiraButtonHandler = async (interaction, client) => {
+    const { customId } = interaction;
+
     try {
-        if (interaction.customId.startsWith('carreira_status_')) {
-            await handleStatusCheck(interaction);
+        // --- [LÓGICA PRINCIPAL AQUI] ---
+        // Lida com o botão "Ver Meu Status"
+        if (customId.startsWith('carreira_status_')) {
+            await handleStatusCheck(interaction, client);
         }
-        else if (interaction.customId.startsWith('confirmar_promocao_')) {
+        // --- [FIM DA LÓGICA] ---
+
+        // Lógica antiga (que você enviou no arquivo) para aprovar/rejeitar promoções manuais
+        else if (customId.startsWith('confirmar_promocao_')) {
             await handleConfirmPromotion(interaction, client);
         }
-        else if (interaction.customId.startsWith('cancelar_promocao_')) {
+        else if (customId.startsWith('cancelar_promocao_')) {
             await handleCancelPromotion(interaction);
         }
         
     } catch (err) {
         console.error("Erro no carreiraButtonHandler:", err);
+        await logErrorToChannel(client, err, interaction);
+        
         if (interaction.deferred || interaction.replied) {
             await interaction.followUp({ content: '❌ Ocorreu um erro interno ao processar este botão.', ephemeral: true });
         } else {
@@ -33,8 +43,56 @@ module.exports = async (interaction, client) => {
     }
 };
 
-/* ... as funções handleConfirmPromotion e handleCancelPromotion ... */
-/* ... (O código delas que te enviei na última resposta continua igual) ... */
+/**
+ * Lida com a verificação de status vinda de um botão
+ */
+async function handleStatusCheck(interaction, client) {
+    // Responde apenas para o usuário que clicou
+    await interaction.deferReply({ ephemeral: true }); 
+
+    const userId = interaction.customId.split('_')[2]; 
+
+    // O botão foi clicado por alguém que não é o dono?
+    if (interaction.user.id !== userId) {
+        return interaction.editReply({ content: '❌ Você só pode ver o status de carreira do membro que foi promovido.' });
+    }
+
+    const member = await interaction.guild.members.fetch(userId).catch(() => null);
+    if (!member) {
+        return interaction.editReply({ content: '❌ Erro: Não consegui encontrar esse membro no servidor.' });
+    }
+
+    const carreirasConfig = await safeReadJson(carreirasPath);
+    const progressao = await safeReadJson(progressaoPath);
+    const userProgress = progressao[userId];
+
+    if (!userProgress) {
+        return interaction.editReply({ 
+            content: '❌ Este membro ainda não tem um registro de progresso.'
+        });
+    }
+
+    const faccaoId = userProgress.factionId;
+    const faccao = carreirasConfig.facoes[faccaoId];
+
+    if (!faccao) {
+        return interaction.editReply({ content: '❌ Erro: Não consegui encontrar a facção deste membro no `carreiras.json`.' });
+    }
+
+    // Chama a função centralizada do helpers
+    const embed = generateCareerEmbed(member, userProgress, faccao, interaction.guild);
+    
+    await interaction.editReply({
+        content: `Este é o status de carreira atual de **${member.displayName}**:`,
+        embeds: [embed]
+    });
+}
+
+
+/* ... Funções de promoção manual (handleConfirmPromotion, handleCancelPromotion) ... */
+// O resto do seu arquivo (handleConfirmPromotion, handleCancelPromotion)
+// pode continuar aqui exatamente como estava, não precisa mudar.
+
 async function handleConfirmPromotion(interaction, client) {
     if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
         return interaction.reply({ 
@@ -54,7 +112,7 @@ async function handleConfirmPromotion(interaction, client) {
     if (!userProgress) {
         return interaction.editReply({ content: '❌ Este usuário não tem progresso de carreira.' });
     }
-    const faccao = carreirasConfig.faccoes[userProgress.factionId];
+    const faccao = carreirasConfig.facoes[userProgress.factionId];
     if (!faccao) {
         return interaction.editReply({ content: '❌ Facção do usuário não encontrada.' });
     }
@@ -99,46 +157,6 @@ async function handleCancelPromotion(interaction) {
     });
     await interaction.reply({ content: 'Promoção rejeitada com sucesso.', ephemeral: true });
 }
-/* ... Fim das funções de promoção ... */
 
 
-/**
- * Lida com a verificação de status (agora usando a função centralizada)
- */
-async function handleStatusCheck(interaction) {
-    await interaction.deferReply({ ephemeral: true });
-
-    const userId = interaction.customId.split('_')[2]; 
-
-    const member = await interaction.guild.members.fetch(userId).catch(() => null);
-    if (!member) {
-        return interaction.editReply({ content: '❌ Erro: Não consegui encontrar o membro original.' });
-    }
-
-    const carreirasConfig = await safeReadJson(carreirasPath);
-    const progressao = await safeReadJson(progressaoPath);
-    const userProgress = progressao[userId];
-
-    if (!userProgress) {
-        return interaction.editReply({ 
-            content: '❌ Este usuário ainda não tem um registro de progresso.'
-        });
-    }
-
-    const faccaoId = userProgress.factionId;
-    const faccao = carreirasConfig.faccoes[faccaoId];
-
-    if (!faccao) {
-        return interaction.editReply({ content: '❌ Erro: Não consegui encontrar a facção deste usuário.' });
-    }
-
-    // --- MUDANÇA AQUI: Lógica do Embed removida ---
-    // Agora apenas chamamos a função centralizada
-    const embed = generateCareerEmbed(member, userProgress, faccao, interaction.guild);
-    // --- FIM DA MUDANÇA ---
-    
-    await interaction.editReply({
-        content: `Este é o status atual de **${member.displayName}**:`,
-        embeds: [embed]
-    });
-}
+module.exports = carreiraButtonHandler;
