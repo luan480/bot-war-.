@@ -1,4 +1,4 @@
-/* commands/patentes/promotionHandler.js (v4 - Botão no Anúncio Público) */
+/* commands/patentes/promotionHandler.js (v5 - CORREÇÃO DO CRASH 'facoes' E DO LOG 'undefined') */
 
 const { Events, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const path = require('path');
@@ -18,8 +18,15 @@ const promotionVigia = async (client) => {
     let config, carreirasConfig;
     
     try {
-        // 1. Lê as configurações
-        config = await safeReadJson(configPath, { canalDePrints: null, vitoriasPorPrint: 1 });
+        // --- [CORREÇÃO DO BUG 'undefined'] ---
+        // Define o padrão
+        const defaultConfig = { canalDePrints: null, vitoriasPorPrint: 1 };
+        // Lê o arquivo
+        const configLido = await safeReadJson(configPath, defaultConfig);
+        // Junta o padrão com o lido, para garantir que 'vitoriasPorPrint' exista
+        config = { ...defaultConfig, ...configLido };
+        // --- [FIM DA CORREÇÃO] ---
+
         carreirasConfig = await safeReadJson(carreirasPath); 
 
         const canalDePrintsId = config.canalDePrints;
@@ -35,7 +42,7 @@ const promotionVigia = async (client) => {
             return; // Para a execução
         }
 
-        // 3. Loga o sucesso
+        // 3. Loga o sucesso (agora corrigido)
         console.log(`[INFO Promoção] Vigia de patentes ATIVADO. Canal: ${canalDePrintsId}. Vitórias por Print: ${config.vitoriasPorPrint}`);
 
     } catch (err) {
@@ -54,11 +61,13 @@ const promotionVigia = async (client) => {
         const member = message.member;
         if (!member) return;
         
-        // --- LÓGICA DE IDENTIFICAÇÃO DE FACÇÃO (v2) ---
+        // --- [CORREÇÃO DO BUG 'facoes is not defined'] ---
         let faccaoId = null;
         let faccao = null;
         const cargoRecrutaId = carreirasConfig.cargoRecrutaId; 
-        const faccoes = carreirasConfig.faccoes;
+        // A variável 'facoes' agora é definida AQUI, lendo do 'carreirasConfig'
+        const faccoes = carreirasConfig.faccoes; 
+        // --- [FIM DA CORREÇÃO] ---
 
         // 1. Caminho Rápido: Cargo principal
         for (const id of Object.keys(facoes)) {
@@ -139,7 +148,8 @@ const promotionVigia = async (client) => {
 
             // --- Lógica de promoção ---
             const cargoAntigoId = userProgress.currentRankId; 
-            const vitoriasParaAdicionar = config.vitoriasPorPrint || 1; 
+            // Usa o 'config' corrigido
+            const vitoriasParaAdicionar = config.vitoriasPorPrint; 
             
             await message.react('🔰'); 
             userProgress.totalWins = userProgress.totalWins + vitoriasParaAdicionar; 
@@ -151,7 +161,7 @@ const promotionVigia = async (client) => {
             
             console.log(`[Promoção] +${vitoriasParaAdicionar} vitórias para ${member.user.tag}. Total: ${userProgress.totalWins}. Cargo atual: ${cargoNovoId}`);
 
-            // --- [INÍCIO DA LÓGICA DE NOTIFICAÇÃO ATUALIZADA] ---
+            // --- Lógica de Anúncio Público ---
             if (cargoAntigoId !== cargoNovoId) {
                 const novoCargo = faccaoDoUsuario.caminho.find(r => r.id === cargoNovoId);
                 
@@ -186,8 +196,6 @@ const promotionVigia = async (client) => {
                         components: [row] // <-- O botão agora vai aqui
                     });
                 }
-                
-                // 4. Lógica de DM removida (CONFORME PEDIDO)
             }
             // --- [FIM DA LÓGICA DE NOTIFICAÇÃO] ---
 
