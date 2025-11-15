@@ -2,10 +2,10 @@
 /node_modules
 
 # Ficheiros de DADOS (Ignorar - Não enviar para o GitHub)
-commands/adm/progressao.json
+commands/patentes/progressao.json
 commands/adm/log_config.json
 commands/adm/server_data.json
-commands/adm/promocao_config.json
+commands/patentes/promocao_config.json
 commands/liga/pontuacao.json
 commands/liga/partidas.json
 commands/liga/painel.json
