@@ -3,8 +3,10 @@ const { Events } = require('discord.js');
 
 // --- Carregadores de Módulos (Vigias e Handlers) ---
 const ligaButtonHandler = require('../commands/liga/buttons.js');
-const carreiraButtonHandler = require('../commands/adm/carreiraButtonHandler.js');
-const promotionVigia = require('../commands/adm/promotionHandler.js'); 
+// --- [ALTERAÇÃO AQUI] ---
+const carreiraButtonHandler = require('../commands/patentes/carreiraButtonHandler.js'); 
+const promotionVigia = require('../commands/patentes/promotionHandler.js');
+// --- [FIM DA ALTERAÇÃO] ---
 const ticketButtonRouter = require('../commands/ticket/buttonRouter.js'); 
 const logHandler = require('../commands/adm/logHandler.js'); 
 const welcomeHandler = require('../commands/adm/welcomeHandler.js');
@@ -20,7 +22,7 @@ module.exports = {
     
         client.buttonHandlers = {
             liga: ligaButtonHandler,
-            carreira: carreiraButtonHandler,
+            carreira: carreiraButtonHandler, // <-- Esta variável agora vem do caminho certo
             ticket: ticketButtonRouter
         };
         console.log("[INFO] Handlers de botões carregados.");
@@ -33,7 +35,7 @@ module.exports = {
 			console.error("❌ Falha ao ativar o Sistema de Status:", err);
 		}
 		try {
-			promotionVigia(client); 
+			promotionVigia(client); // <-- Esta variável agora vem do caminho certo
 			console.log("✅ Sistema de Promoção (vigia de prints) ativado.");
 		} catch (err) {
 			console.error("❌ Falha ao ativar o Sistema de Promoção:", err);
